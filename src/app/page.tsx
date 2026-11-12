@@ -1,69 +1,159 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import React, { useState } from 'react';
+import { useKiranaStore } from '@/lib/store';
+import { Role, Order, KhataCustomer } from '@/types/kirana';
+import { Header } from '@/components/Header';
+import { CustomerView } from '@/components/CustomerView';
+import { ShopkeeperView } from '@/components/ShopkeeperView';
+import { ParchiUploadModal } from '@/components/ParchiUploadModal';
+import { BillModal } from '@/components/BillModal';
+import { KhataReminderModal } from '@/components/KhataReminderModal';
+
+export default function HomePage() {
+  const {
+    isClient,
+    settings,
+    products,
+    orders,
+    khataCustomers,
+    firebaseActive,
+    updateSettings,
+    toggleShopOpen,
+    placeOrder,
+    setOrderDailyRates,
+    updateOrderStatus,
+    recordKhataTransaction,
+    addKhataCustomer,
+    toggleProductStock,
+    generateWhatsAppReminderUrl,
+    generateWhatsAppBillUrl,
+  } = useKiranaStore();
+
+  const [currentRole, setCurrentRole] = useState<Role>('customer');
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isParchiModalOpen, setIsParchiModalOpen] = useState(false);
+  const [selectedBillOrder, setSelectedBillOrder] = useState<Order | null>(null);
+  const [selectedKhataCustomer, setSelectedKhataCustomer] = useState<KhataCustomer | null>(null);
+
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-emerald-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-14 h-14 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <h2 className="text-lg font-black text-emerald-900">आपला किराणा सुरू होत आहे...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  // Count pending rate orders
+  const pendingOrdersCount = orders.filter((o) => o.status === 'दर_निश्चिती_बाकी').length;
+
+  // WhatsApp Handlers
+  const handleShareWhatsAppBill = (order: Order) => {
+    const url = generateWhatsAppBillUrl(order);
+    window.open(url, '_blank');
+  };
+
+  const handleSendWhatsAppKhataReminder = (customer: KhataCustomer) => {
+    const url = generateWhatsAppReminderUrl(customer);
+    window.open(url, '_blank');
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans selection:bg-emerald-100 selection:text-emerald-900">
+      {/* Top Header */}
+      <Header
+        currentRole={currentRole}
+        onRoleChange={setCurrentRole}
+        settings={settings}
+        cartCount={0}
+        onOpenCart={() => setIsCartOpen(true)}
+        firebaseActive={firebaseActive}
+        pendingOrdersCount={pendingOrdersCount}
+      />
+
+      {/* Main View Area */}
+      <main className="flex-1">
+        {currentRole === 'customer' ? (
+          <CustomerView
+            products={products}
+            settings={settings}
+            orders={orders}
+            khataCustomers={khataCustomers}
+            onPlaceOrder={placeOrder}
+            onOpenParchiModal={() => setIsParchiModalOpen(true)}
+            onViewBill={(order) => setSelectedBillOrder(order)}
+            isCartOpen={isCartOpen}
+            onCloseCart={() => setIsCartOpen(false)}
+          />
+        ) : (
+          <ShopkeeperView
+            settings={settings}
+            orders={orders}
+            khataCustomers={khataCustomers}
+            products={products}
+            onToggleShopOpen={toggleShopOpen}
+            onUpdateSettings={updateSettings}
+            onSetOrderDailyRates={setOrderDailyRates}
+            onUpdateOrderStatus={updateOrderStatus}
+            onOpenKhataModal={(cust) => setSelectedKhataCustomer(cust)}
+            onAddKhataCustomer={addKhataCustomer}
+            onShareWhatsAppBill={handleShareWhatsAppBill}
+            onSendWhatsAppKhataReminder={handleSendWhatsAppKhataReminder}
+            onToggleProductStock={toggleProductStock}
+            onViewBill={(order) => setSelectedBillOrder(order)}
+          />
+        )}
       </main>
+
+      {/* Modals */}
+      <ParchiUploadModal
+        isOpen={isParchiModalOpen}
+        onClose={() => setIsParchiModalOpen(false)}
+        onSubmit={async (data) => {
+          await placeOrder({
+            ...data,
+            items: [],
+          });
+          alert('आपली कागदी यादी दुकानात पोहोचली आहे! दुकानदार आजचे भाव लावून बिल तयार करेल.');
+        }}
+      />
+
+      <BillModal
+        order={selectedBillOrder}
+        settings={settings}
+        onClose={() => setSelectedBillOrder(null)}
+        onShareWhatsApp={handleShareWhatsAppBill}
+      />
+
+      <KhataReminderModal
+        customer={selectedKhataCustomer}
+        settings={settings}
+        onClose={() => setSelectedKhataCustomer(null)}
+        onSendWhatsApp={handleSendWhatsAppKhataReminder}
+        onRecordTransaction={recordKhataTransaction}
+      />
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-200 py-6 px-4 text-center text-xs text-gray-500 mt-12 print:hidden">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-gray-800">{settings.shopName}</span>
+            <span>•</span>
+            <span>स्थानिक किराणा डिजिटल ॲप 🛒</span>
+          </div>
+
+          <div className="flex items-center gap-3 text-gray-400">
+            <span>मराठी भाषा</span>
+            <span>•</span>
+            <span>WhatsApp बिलिंग व उधारी वही</span>
+            <span>•</span>
+            <span>GitHub & Vercel Ready ⚡</span>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
