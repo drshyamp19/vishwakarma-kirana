@@ -87,7 +87,18 @@ export function useKiranaStore() {
       // LocalStorage Fallback
       try {
         const storedSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-        if (storedSettings) setSettings(JSON.parse(storedSettings));
+        if (storedSettings) {
+          const parsed = JSON.parse(storedSettings);
+          // जर जुने डमी नाव असेल तर नवीन मूळ दुकानाची माहिती सेट करा
+          if (parsed.shopName === 'आपला किराणा स्टोअर्स' || !parsed.phone || parsed.phone === '9876543210') {
+            setSettings(INITIAL_SHOP_SETTINGS);
+            localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(INITIAL_SHOP_SETTINGS));
+          } else {
+            setSettings(parsed);
+          }
+        } else {
+          setSettings(INITIAL_SHOP_SETTINGS);
+        }
 
         const storedProducts = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
         if (storedProducts) setProducts(JSON.parse(storedProducts));
