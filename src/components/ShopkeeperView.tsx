@@ -24,7 +24,8 @@ import {
   PackageCheck,
   Eye,
   Check,
-  Power
+  Power,
+  Lock
 } from 'lucide-react';
 
 interface ShopkeeperViewProps {
@@ -86,6 +87,7 @@ export const ShopkeeperView: React.FC<ShopkeeperViewProps> = ({
   const [phoneInput, setPhoneInput] = useState(settings.phone);
   const [upiIdInput, setUpiIdInput] = useState(settings.upiId);
   const [addressInput, setAddressInput] = useState(settings.address);
+  const [pinInput, setPinInput] = useState(settings.adminPin || '8605');
   const [settingsSaved, setSettingsSaved] = useState(false);
 
   // Counters
@@ -170,6 +172,7 @@ export const ShopkeeperView: React.FC<ShopkeeperViewProps> = ({
       phone: phoneInput,
       upiId: upiIdInput,
       address: addressInput,
+      adminPin: pinInput || '8605',
     });
     setSettingsSaved(true);
     setTimeout(() => setSettingsSaved(false), 4000);
@@ -760,6 +763,26 @@ export const ShopkeeperView: React.FC<ShopkeeperViewProps> = ({
                 className="w-full text-xs px-3.5 py-2 border border-gray-300 rounded-xl font-medium"
                 required
               />
+            </div>
+
+            {/* Secret PIN Field */}
+            <div className="p-4 bg-amber-50 border-2 border-amber-300 rounded-2xl">
+              <label className="block text-xs font-black text-amber-950 mb-1 flex items-center gap-1.5">
+                <Lock className="w-4 h-4 text-amber-700" />
+                <span>दुकानदार सिक्रेट पिन (Secret 4-Digit PIN) *</span>
+              </label>
+              <input
+                type="text"
+                maxLength={4}
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                placeholder="उदा. 8605"
+                className="w-full text-base tracking-widest font-mono font-black px-3.5 py-2.5 border-2 border-amber-400 bg-white rounded-xl text-amber-950"
+                required
+              />
+              <p className="text-[11px] text-amber-900 mt-1 leading-relaxed">
+                हा ४-अंकी पिन फक्त तुम्हाला माहित असेल. दुकानदार डॅशबोर्ड उघडण्यासाठी हाच पिन लागेल. तुम्हाला हवा तो पिन येथे टाकून 'माहिती सेव्ह करा' दाबा.
+              </p>
             </div>
 
             <button

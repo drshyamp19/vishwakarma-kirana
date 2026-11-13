@@ -10,6 +10,7 @@ export const INITIAL_SHOP_SETTINGS: ShopSettings = {
   minOrderAmount: 50,
   deliveryCharge: 0,
   homeDeliveryAvailable: false, // सध्या घरपोच डिलिव्हरी बंद आहे
+  adminPin: '8605',             // सुरुवातीचा डीफॉल्ट पिन
 };
 
 export const INITIAL_PRODUCTS: Product[] = [

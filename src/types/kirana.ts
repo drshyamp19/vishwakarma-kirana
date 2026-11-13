@@ -74,4 +74,5 @@ export interface ShopSettings {
   minOrderAmount: number;
   deliveryCharge: number;
   homeDeliveryAvailable: boolean; // सध्या घरपोच डिलिव्हरी बंद आहे (false)
+  adminPin: string;             // दुकानदार सिक्रेट पिन (उदा. '8605')
 }

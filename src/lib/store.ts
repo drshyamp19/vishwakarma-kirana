@@ -93,6 +93,7 @@ export function useKiranaStore() {
             setSettings(INITIAL_SHOP_SETTINGS);
             localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(INITIAL_SHOP_SETTINGS));
           } else {
+            if (!parsed.adminPin) parsed.adminPin = '8605';
             setSettings(parsed);
           }
         } else {

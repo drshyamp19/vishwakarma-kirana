@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Role, ShopSettings } from '@/types/kirana';
-import { ShoppingBag, Store, User, Sparkles, CheckCircle2 } from 'lucide-react';
+import { ShoppingBag, Store, User, Sparkles, Lock, LogOut } from 'lucide-react';
 
 interface HeaderProps {
   currentRole: Role;
@@ -13,6 +13,8 @@ interface HeaderProps {
   firebaseActive: boolean;
   onOpenOrders?: () => void;
   pendingOrdersCount?: number;
+  isShopkeeperUnlocked?: boolean;
+  onLockShopkeeper?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -22,8 +24,9 @@ export const Header: React.FC<HeaderProps> = ({
   cartCount,
   onOpenCart,
   firebaseActive,
-  onOpenOrders,
   pendingOrdersCount = 0,
+  isShopkeeperUnlocked = false,
+  onLockShopkeeper,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-emerald-100 shadow-sm">
@@ -103,6 +106,9 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Store className="w-4 h-4" />
               <span>दुकानदार</span>
+              {!isShopkeeperUnlocked && (
+                <Lock className="w-3 h-3 text-amber-300" />
+              )}
               {pendingOrdersCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 bg-rose-600 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center animate-bounce shadow">
                   {pendingOrdersCount}
@@ -110,6 +116,18 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </button>
           </div>
+
+          {/* Shopkeeper Logout/Lock button */}
+          {currentRole === 'shopkeeper' && onLockShopkeeper && (
+            <button
+              onClick={onLockShopkeeper}
+              className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl border border-rose-200 transition text-xs font-bold flex items-center gap-1"
+              title="डॅशबोर्ड लॉक करा (Logout)"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">लॉक</span>
+            </button>
+          )}
 
           {/* Cart / My Orders Button (Only for Customer) */}
           {currentRole === 'customer' && (

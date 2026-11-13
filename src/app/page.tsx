@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useKiranaStore } from '@/lib/store';
 import { Role, Order, KhataCustomer } from '@/types/kirana';
 import { Header } from '@/components/Header';
@@ -9,6 +9,7 @@ import { ShopkeeperView } from '@/components/ShopkeeperView';
 import { ParchiUploadModal } from '@/components/ParchiUploadModal';
 import { BillModal } from '@/components/BillModal';
 import { KhataReminderModal } from '@/components/KhataReminderModal';
+import { PinModal } from '@/components/PinModal';
 
 export default function HomePage() {
   const {
@@ -31,17 +32,31 @@ export default function HomePage() {
   } = useKiranaStore();
 
   const [currentRole, setCurrentRole] = useState<Role>('customer');
+  const [isShopkeeperUnlocked, setIsShopkeeperUnlocked] = useState(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isParchiModalOpen, setIsParchiModalOpen] = useState(false);
   const [selectedBillOrder, setSelectedBillOrder] = useState<Order | null>(null);
   const [selectedKhataCustomer, setSelectedKhataCustomer] = useState<KhataCustomer | null>(null);
+
+  // Check session unlock status on client
+  useEffect(() => {
+    try {
+      const unlocked = sessionStorage.getItem('vishwakarma_shopkeeper_unlocked');
+      if (unlocked === 'true') {
+        setIsShopkeeperUnlocked(true);
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+  }, []);
 
   if (!isClient) {
     return (
       <div className="min-h-screen bg-emerald-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-14 h-14 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <h2 className="text-lg font-black text-emerald-900">आपला किराणा सुरू होत आहे...</h2>
+          <h2 className="text-lg font-black text-emerald-900">विश्वकर्मा किराणा सुरू होत आहे...</h2>
         </div>
       </div>
     );
@@ -49,6 +64,42 @@ export default function HomePage() {
 
   // Count pending rate orders
   const pendingOrdersCount = orders.filter((o) => o.status === 'दर_निश्चिती_बाकी').length;
+
+  // Role switch handler with PIN protection
+  const handleRoleChange = (targetRole: Role) => {
+    if (targetRole === 'shopkeeper') {
+      if (isShopkeeperUnlocked) {
+        setCurrentRole('shopkeeper');
+      } else {
+        setIsPinModalOpen(true);
+      }
+    } else {
+      setCurrentRole('customer');
+    }
+  };
+
+  // On correct PIN entered
+  const handlePinSuccess = () => {
+    setIsShopkeeperUnlocked(true);
+    setCurrentRole('shopkeeper');
+    setIsPinModalOpen(false);
+    try {
+      sessionStorage.setItem('vishwakarma_shopkeeper_unlocked', 'true');
+    } catch (e) {
+      console.warn(e);
+    }
+  };
+
+  // Lock Shopkeeper Dashboard (Logout)
+  const handleLockShopkeeper = () => {
+    setIsShopkeeperUnlocked(false);
+    setCurrentRole('customer');
+    try {
+      sessionStorage.removeItem('vishwakarma_shopkeeper_unlocked');
+    } catch (e) {
+      console.warn(e);
+    }
+  };
 
   // WhatsApp Handlers
   const handleShareWhatsAppBill = (order: Order) => {
@@ -66,12 +117,14 @@ export default function HomePage() {
       {/* Top Header */}
       <Header
         currentRole={currentRole}
-        onRoleChange={setCurrentRole}
+        onRoleChange={handleRoleChange}
         settings={settings}
         cartCount={0}
         onOpenCart={() => setIsCartOpen(true)}
         firebaseActive={firebaseActive}
         pendingOrdersCount={pendingOrdersCount}
+        isShopkeeperUnlocked={isShopkeeperUnlocked}
+        onLockShopkeeper={handleLockShopkeeper}
       />
 
       {/* Main View Area */}
@@ -109,6 +162,13 @@ export default function HomePage() {
       </main>
 
       {/* Modals */}
+      <PinModal
+        isOpen={isPinModalOpen}
+        correctPin={settings.adminPin || '8605'}
+        onSuccess={handlePinSuccess}
+        onClose={() => setIsPinModalOpen(false)}
+      />
+
       <ParchiUploadModal
         isOpen={isParchiModalOpen}
         onClose={() => setIsParchiModalOpen(false)}
@@ -150,7 +210,7 @@ export default function HomePage() {
             <span>•</span>
             <span>WhatsApp बिलिंग व उधारी वही</span>
             <span>•</span>
-            <span>GitHub & Vercel Ready ⚡</span>
+            <span>सुरक्षित पिन लॉक 🔒</span>
           </div>
         </div>
       </footer>
