@@ -14,13 +14,14 @@ import {
   AlertCircle, 
   Sparkles,
   Phone,
-  MapPin,
+  User,
   X,
   RotateCcw,
   Trash2,
   Store,
-  ChevronRight
+  Edit2
 } from 'lucide-react';
+import { CustomerLoginModal } from './CustomerLoginModal';
 
 interface CustomerViewProps {
   products: Product[];
@@ -71,21 +72,35 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
   const [orderSuccess, setOrderSuccess] = useState<string | null>(null);
   const [cartError, setCartError] = useState('');
   const [deliveryAlert, setDeliveryAlert] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // Selected unit for each product card
   const [selectedProductUnits, setSelectedProductUnits] = useState<Record<string, string>>({});
 
-  // Load saved customer info
+  // Load saved customer info permanently
   useEffect(() => {
     try {
-      const savedName = localStorage.getItem('aapla_kirana_c_name');
-      const savedPhone = localStorage.getItem('aapla_kirana_c_phone');
+      const savedName = localStorage.getItem('vishwakarma_c_name') || localStorage.getItem('aapla_kirana_c_name');
+      const savedPhone = localStorage.getItem('vishwakarma_c_phone') || localStorage.getItem('aapla_kirana_c_phone');
       if (savedName) setCustomerName(savedName);
       if (savedPhone) setCustomerPhone(savedPhone);
     } catch (e) {
       console.warn(e);
     }
   }, []);
+
+  // Save customer login permanently
+  const handleCustomerLoginSuccess = (name: string, phone: string) => {
+    setCustomerName(name);
+    setCustomerPhone(phone);
+    setIsLoginModalOpen(false);
+    try {
+      localStorage.setItem('vishwakarma_c_name', name);
+      localStorage.setItem('vishwakarma_c_phone', phone);
+    } catch (e) {
+      console.warn(e);
+    }
+  };
 
   // Filter products
   const filteredProducts = products.filter((p) => {
@@ -106,18 +121,27 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
     return selectedProductUnits[product.id] || product.unit;
   };
 
-  // Cart operations
+  // Cart operations (Fix: Exactly 1 line item per product, no duplicates)
   const addToCart = (product: Product) => {
+    // If user hasn't registered name & phone yet, prompt modal gently
+    if (!customerPhone) {
+      setIsLoginModalOpen(true);
+    }
+
     const chosenUnit = getActiveUnit(product);
 
     setCart((prev) => {
-      const existing = prev.find(
-        (item) => item.productId === product.id && item.unit === chosenUnit
-      );
+      // Look for the product in the cart (regardless of previous unit)
+      const existing = prev.find((item) => item.productId === product.id);
       if (existing) {
+        // If already in cart, update its unit to chosen unit and keep or increment quantity
         return prev.map((item) =>
-          item.productId === product.id && item.unit === chosenUnit
-            ? { ...item, quantity: item.quantity + 1 }
+          item.productId === product.id
+            ? {
+                ...item,
+                unit: chosenUnit,
+                quantity: item.unit === chosenUnit ? item.quantity + 1 : item.quantity,
+              }
             : item
         );
       }
@@ -133,6 +157,13 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
         },
       ];
     });
+  };
+
+  // Allow switching unit right inside the cart drawer
+  const changeCartItemUnit = (itemIndex: number, newUnit: string) => {
+    setCart((prev) =>
+      prev.map((item, idx) => (idx === itemIndex ? { ...item, unit: newUnit } : item))
+    );
   };
 
   const updateQuantity = (itemIndex: number, change: number) => {
@@ -178,19 +209,15 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
       setCartError('यादी रिकामी आहे, कृपया वस्तू जोडा');
       return;
     }
-    if (!customerName.trim()) {
-      setCartError('कृपया आपले नाव टाका');
-      return;
-    }
-    if (!customerPhone.trim() || customerPhone.length < 10) {
-      setCartError('कृपया १० अंकी योग्य मोबाईल नंबर टाका');
+    if (!customerName.trim() || !customerPhone.trim()) {
+      setIsLoginModalOpen(true);
       return;
     }
 
     setCartError('');
     try {
-      localStorage.setItem('aapla_kirana_c_name', customerName);
-      localStorage.setItem('aapla_kirana_c_phone', customerPhone);
+      localStorage.setItem('vishwakarma_c_name', customerName);
+      localStorage.setItem('vishwakarma_c_phone', customerPhone);
     } catch (e) {
       console.warn(e);
     }
@@ -209,18 +236,59 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
     setTimeout(() => setOrderSuccess(null), 8000);
   };
 
-  // Filter orders by customer phone
+  // Filter orders by customer phone automatically
   const myOrders = customerPhone 
     ? orders.filter(o => o.customerPhone.includes(customerPhone.slice(-10)))
     : orders.slice(0, 5);
 
-  // Customer Khata
+  // Customer Khata automatically
   const myKhata = customerPhone
     ? khataCustomers.find(k => k.phone.includes(customerPhone.slice(-10)))
     : null;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
+      {/* Customer Permanent Login Status Bar */}
+      <div className="bg-white rounded-2xl p-3 border border-emerald-200 shadow-xs mb-5 flex flex-wrap items-center justify-between gap-2">
+        {customerName && customerPhone ? (
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs">
+              <User className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs sm:text-sm font-black text-gray-900">
+                नमस्कार, {customerName} जी! 👋
+              </p>
+              <p className="text-[11px] font-mono text-gray-500 font-bold">
+                मोबाईल: {customerPhone}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-xs text-gray-700">
+            <User className="w-4 h-4 text-emerald-700" />
+            <span className="font-semibold">
+              विश्वकर्मा किराणामध्ये स्वागत आहे! एकदा आपले नाव व मोबाईल टाका.
+            </span>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setIsLoginModalOpen(true)}
+          className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+        >
+          {customerName ? (
+            <>
+              <Edit2 className="w-3 h-3" />
+              <span>नाव / नंबर बदला</span>
+            </>
+          ) : (
+            <span>नाव व मोबाईल टाका ➔</span>
+          )}
+        </button>
+      </div>
+
       {/* Navigation Tabs */}
       <div className="flex border-b border-gray-200 mb-6 gap-2">
         <button
@@ -415,7 +483,7 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
                     </button>
                     {qtyInCart > 0 && (
                       <p className="text-center text-[10px] text-emerald-700 font-semibold mt-1">
-                        ✓ यादीत {qtyInCart} वेळा जोडले आहे
+                        ✓ यादीत जोडले आहे ({cart.find(it => it.productId === product.id)?.unit})
                       </p>
                     )}
                   </div>
@@ -583,22 +651,12 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
               तुमच्या मोबाईल नंबरनुसार दुकानातील उधारी व जमा रकमेचा हिशोब
             </p>
 
-            <div className="flex gap-2 max-w-sm mb-4">
-              <input
-                type="tel"
-                placeholder="आपला १० अंकी नंबर टाका..."
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-xl font-bold font-mono"
-              />
-            </div>
-
             {myKhata ? (
               <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200">
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="font-black text-base text-gray-900">{myKhata.name}</h4>
-                    <p className="text-xs text-gray-500">मोबाईल: {myKhata.phone}</p>
+                    <p className="text-xs text-gray-500 font-mono">मोबाईल: {myKhata.phone}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-gray-500">बाकी उधारी:</p>
@@ -623,8 +681,8 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
             ) : (
               <div className="text-center py-8 text-xs text-gray-500">
                 {customerPhone 
-                  ? 'या मोबाईल नंबरवर कोणतेही उधारी खाते आढळले नाही किंवा पूर्ण हिशोब पूर्ण आहे.' 
-                  : 'हिशोब पाहण्यासाठी वर मोबाईल नंबर टाका.'}
+                  ? `मोबाईल नंबर ${customerPhone} वर कोणतेही उधारी खाते आढळले नाही किंवा पूर्ण हिशोब पूर्ण आहे.` 
+                  : 'हिशोब पाहण्यासाठी वर आपले नाव व मोबाईल नंबर टाका.'}
               </div>
             )}
           </div>
@@ -663,43 +721,71 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
             {/* Cart Items List */}
             <div className="flex-1 overflow-y-auto py-4 divide-y divide-gray-100">
               {cart.length > 0 ? (
-                cart.map((item, idx) => (
-                  <div key={idx} className="py-3 flex items-center justify-between gap-2">
-                    <div className="flex-1">
-                      <p className="font-bold text-xs text-gray-900">{item.name}</p>
-                      <p className="text-[11px] text-emerald-800 font-semibold">
-                        वजन/प्रमाण: {item.unit}
-                      </p>
-                    </div>
+                cart.map((item, idx) => {
+                  const itemProduct = products.find((p) => p.id === item.productId);
+                  const availableUnits = itemProduct?.availableUnits || [item.unit];
 
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1.5 bg-gray-100 rounded-xl p-1">
-                        <button
-                          onClick={() => updateQuantity(idx, -1)}
-                          className="w-6 h-6 bg-white rounded-lg flex items-center justify-center text-xs font-bold text-gray-700 hover:bg-gray-200 shadow-xs"
-                        >
-                          <Minus className="w-3 h-3" />
-                        </button>
-                        <span className="text-xs font-black px-1.5">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(idx, 1)}
-                          className="w-6 h-6 bg-emerald-700 text-white rounded-lg flex items-center justify-center text-xs font-bold hover:bg-emerald-800 shadow-xs"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
+                  return (
+                    <div key={idx} className="py-3 flex flex-col gap-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1">
+                          <p className="font-bold text-xs text-gray-900">{item.name}</p>
+                          <p className="text-[11px] text-emerald-800 font-bold mt-0.5">
+                            निवडलेले माप: {item.unit}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+                            <button
+                              onClick={() => updateQuantity(idx, -1)}
+                              className="w-6 h-6 bg-white rounded-lg flex items-center justify-center text-xs font-bold text-gray-700 hover:bg-gray-200 shadow-xs"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="text-xs font-black px-1.5">{item.quantity}</span>
+                            <button
+                              onClick={() => updateQuantity(idx, 1)}
+                              className="w-6 h-6 bg-emerald-700 text-white rounded-lg flex items-center justify-center text-xs font-bold hover:bg-emerald-800 shadow-xs"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {/* Remove item button */}
+                          <button
+                            onClick={() => removeFromCart(idx)}
+                            className="p-1.5 text-gray-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition"
+                            title="यादीतून काढून टाका"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
 
-                      {/* Remove item button */}
-                      <button
-                        onClick={() => removeFromCart(idx)}
-                        className="p-1.5 text-gray-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition"
-                        title="यादीतून काढून टाका"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {/* Interactive Unit Switcher inside Cart */}
+                      {availableUnits.length > 1 && (
+                        <div className="flex flex-wrap items-center gap-1 bg-gray-50 p-1.5 rounded-lg border border-gray-100">
+                          <span className="text-[10px] text-gray-400 font-semibold mr-1">माप बदला:</span>
+                          {availableUnits.map((u) => (
+                            <button
+                              key={u}
+                              type="button"
+                              onClick={() => changeCartItemUnit(idx, u)}
+                              className={`px-2 py-0.5 text-[10px] font-bold rounded-md border transition ${
+                                item.unit === u
+                                  ? 'bg-emerald-700 text-white border-emerald-700 shadow-2xs'
+                                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                              }`}
+                            >
+                              {u}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="text-center py-16 text-gray-400">
                   <ShoppingBag className="w-12 h-12 mx-auto mb-2 opacity-30" />
@@ -711,30 +797,41 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
             {/* Checkout Form */}
             {cart.length > 0 && (
               <form onSubmit={handleCheckout} className="pt-4 border-t border-gray-100 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">आपले नाव *</label>
+                {/* Pre-filled / Logged-in Customer info summary */}
+                {customerName && customerPhone ? (
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+                    <div>
+                      <p className="font-bold text-gray-900">{customerName}</p>
+                      <p className="text-gray-500 font-mono">{customerPhone}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsLoginModalOpen(true)}
+                      className="text-[11px] text-emerald-800 font-bold hover:underline"
+                    >
+                      बदला ✏️
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
                     <input
                       type="text"
-                      placeholder="उदा. राहुल पाटील"
+                      placeholder="आपले नाव *"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       className="w-full text-xs px-3 py-2 border border-gray-300 rounded-xl font-medium"
                       required
                     />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">मोबाईल नंबर *</label>
                     <input
                       type="tel"
-                      placeholder="१० अंकी नंबर"
+                      placeholder="१० अंकी नंबर *"
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
                       className="w-full text-xs px-3 py-2 border border-gray-300 rounded-xl font-medium font-mono"
                       required
                     />
                   </div>
-                </div>
+                )}
 
                 {/* Delivery Option with Alert */}
                 <div>
@@ -777,6 +874,15 @@ export const CustomerView: React.FC<CustomerViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Customer 1-Time Easy Login Modal */}
+      <CustomerLoginModal
+        isOpen={isLoginModalOpen}
+        onSuccess={handleCustomerLoginSuccess}
+        onClose={() => setIsLoginModalOpen(false)}
+        initialName={customerName}
+        initialPhone={customerPhone}
+      />
     </div>
   );
 };
