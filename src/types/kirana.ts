@@ -5,7 +5,8 @@ export interface Product {
   nameMr: string;       // उदा. "साखर (Sugar)"
   nameEn: string;
   category: 'धान्य व डाळी' | 'तेल व तूप' | 'मसाले व पॅकेट' | 'दैनंदिन किराणा' | 'स्वच्छता व साबण';
-  unit: string;         // '१ किलो', '५०० ग्रॅम', '१ लिटर', '१ पाकीट'
+  unit: string;         // डीफॉल्ट युनिट उदा. '१ किलो'
+  availableUnits?: string[]; // ग्राहकाला निवडण्यासाठी लवचिक पर्याय
   image: string;
   inStock: boolean;
   approxRate?: number;  // अंदाजे दर (फक्त संदर्भासाठी)
@@ -14,7 +15,7 @@ export interface Product {
 export interface OrderItem {
   productId?: string;
   name: string;
-  unit: string;
+  unit: string;         // निवडलेले प्रमाण उदा. 'पाव किलो (२५०g)', 'अर्धा किलो (५००g)', '१ किलो'
   quantity: number;
   dailyRate?: number;   // दुकानदाराने टाकलेला आजचा दर (प्रति युनिट)
   itemTotal?: number;   // quantity * dailyRate
@@ -33,7 +34,8 @@ export interface Order {
   customerName: string;
   customerPhone: string;
   customerAddress?: string;
-  orderType: 'डिलिव्हरी' | 'दुकानातून_घेणे'; // Home delivery or Self pickup
+  orderType: 'दुकानातून_घेणे' | 'डिलिव्हरी'; // Default pickup
+  pickupReadyTime?: string; // उदा. '२० मिनिटांत तयार होईल', '३० मिनिटांत तयार होईल'
   items: OrderItem[];
   parchiImage?: string; // जर हस्तलिखित चिठ्ठीचा फोटो असेल तर (Base64 किंवा URL)
   parchiNotes?: string;
@@ -66,9 +68,10 @@ export interface ShopSettings {
   shopName: string;
   ownerName: string;
   phone: string;
-  upiId: string;       // PhonePe / GPay UPI ID (उदा. 9876543210@ybl)
+  upiId: string;       // PhonePe / GPay UPI ID (उदा. 8605495090@ybl)
   address: string;
   isOpen: boolean;
   minOrderAmount: number;
   deliveryCharge: number;
+  homeDeliveryAvailable: boolean; // सध्या घरपोच डिलिव्हरी बंद आहे (false)
 }

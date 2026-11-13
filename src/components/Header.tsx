@@ -118,7 +118,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="relative bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl flex items-center gap-2 shadow-sm transition active:scale-95"
             >
               <ShoppingBag className="w-5 h-5" />
-              <span className="hidden sm:inline text-sm">माझी पिशवी</span>
+              <span className="hidden sm:inline text-sm">माझी यादी</span>
               {cartCount > 0 && (
                 <span className="bg-amber-400 text-gray-900 text-xs font-black px-1.5 py-0.5 rounded-full min-w-5 text-center">
                   {cartCount}

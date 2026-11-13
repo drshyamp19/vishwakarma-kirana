@@ -34,12 +34,13 @@ interface ShopkeeperViewProps {
   products: Product[];
   onToggleShopOpen: () => void;
   onUpdateSettings: (settings: Partial<ShopSettings>) => void;
-  onSetOrderDailyRates: (orderId: string, items: OrderItem[], discount?: number) => void;
+  onSetOrderDailyRates: (orderId: string, items: OrderItem[], discount?: number, pickupReadyTime?: string) => void;
   onUpdateOrderStatus: (
     orderId: string, 
     status: OrderStatus, 
     paymentMethod?: 'रोख' | 'UPI' | 'उधारी',
-    isPaid?: boolean
+    isPaid?: boolean,
+    pickupReadyTime?: string
   ) => void;
   onOpenKhataModal: (customer: KhataCustomer) => void;
   onAddKhataCustomer: (name: string, phone: string, initialDue: number) => void;
@@ -69,6 +70,7 @@ export const ShopkeeperView: React.FC<ShopkeeperViewProps> = ({
   
   // Rate entry state: map orderId -> items with editable daily rates
   const [editingRates, setEditingRates] = useState<Record<string, OrderItem[]>>({});
+  const [orderReadyTimes, setOrderReadyTimes] = useState<Record<string, string>>({});
   const [selectedParchiImage, setSelectedParchiImage] = useState<string | null>(null);
 
   // Khata search & new customer modal
@@ -107,18 +109,40 @@ export const ShopkeeperView: React.FC<ShopkeeperViewProps> = ({
     setEditingRates(prev => ({ ...prev, [orderId]: updated }));
   };
 
+  // Item details change (for custom handwritten items)
+  const handleItemDetailsChange = (
+    orderId: string,
+    itemIndex: number,
+    field: 'name' | 'unit' | 'quantity',
+    value: string | number
+  ) => {
+    const currentItems = editingRates[orderId] || orders.find(o => o.id === orderId)?.items || [];
+    const updated = currentItems.map((it, idx) => {
+      if (idx === itemIndex) {
+        const itemObj = { ...it, [field]: value };
+        if (field === 'quantity') {
+          itemObj.itemTotal = (itemObj.dailyRate || 0) * (value as number);
+        }
+        return itemObj;
+      }
+      return it;
+    });
+    setEditingRates(prev => ({ ...prev, [orderId]: updated }));
+  };
+
   // Submit final daily rates & generate bill
   const handleSaveRatesAndBill = (orderId: string) => {
     const items = editingRates[orderId] || orders.find(o => o.id === orderId)?.items || [];
-    onSetOrderDailyRates(orderId, items);
+    const readyTime = orderReadyTimes[orderId] || 'साधारण ३० मिनिटांत तयार होईल';
+    onSetOrderDailyRates(orderId, items, 0, readyTime);
   };
 
   // Add new item into order (e.g. from parchi)
   const handleAddItemToOrder = (orderId: string) => {
     const currentItems = editingRates[orderId] || orders.find(o => o.id === orderId)?.items || [];
     const newItem: OrderItem = {
-      name: 'नवीन किराणा वस्तू',
-      unit: '१ किलो',
+      name: 'इतर वस्तू (उदा. कापूर / अगरबत्ती)',
+      unit: '१ पाकीट',
       quantity: 1,
       dailyRate: 0,
       itemTotal: 0,
@@ -375,10 +399,31 @@ export const ShopkeeperView: React.FC<ShopkeeperViewProps> = ({
                           className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-gray-50 rounded-xl border border-gray-100 text-xs"
                         >
                           <div className="flex-1 min-w-[140px]">
-                            <p className="font-bold text-gray-900">{item.name}</p>
-                            <p className="text-[11px] text-gray-500">
-                              प्रमाण: {item.quantity} {item.unit}
-                            </p>
+                            {isPendingRate && !item.productId ? (
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={item.name}
+                                  placeholder="वस्तूचे नाव"
+                                  onChange={(e) => handleItemDetailsChange(ord.id, idx, 'name', e.target.value)}
+                                  className="w-full font-bold text-gray-900 border border-gray-300 rounded px-1.5 py-0.5 text-xs"
+                                />
+                                <input
+                                  type="text"
+                                  value={item.unit}
+                                  placeholder="प्रमाण (उदा. १ पाकीट)"
+                                  onChange={(e) => handleItemDetailsChange(ord.id, idx, 'unit', e.target.value)}
+                                  className="w-24 text-[11px] text-gray-700 border border-gray-300 rounded px-1.5 py-0.5"
+                                />
+                              </div>
+                            ) : (
+                              <>
+                                <p className="font-bold text-gray-900">{item.name}</p>
+                                <p className="text-[11px] text-gray-500">
+                                  प्रमाण: {item.quantity} × {item.unit}
+                                </p>
+                              </>
+                            )}
                           </div>
 
                           {/* Daily rate input */}
@@ -411,6 +456,31 @@ export const ShopkeeperView: React.FC<ShopkeeperViewProps> = ({
                       ))}
                     </div>
                   </div>
+
+                  {/* Ready Time Selector */}
+                  {isPendingRate && (
+                    <div className="mt-3 p-3 bg-teal-50/70 border border-teal-200 rounded-2xl">
+                      <label className="text-[11px] font-bold text-teal-950 block mb-1.5">
+                        ⏰ सामान दुकानातून कधी घेऊन जायचे? (पिक-अप वेळ):
+                      </label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {['२० मिनिटांत तयार होईल', '३० मिनिटांत तयार होईल', '४५ मिनिटांत तयार होईल', '१ तासात तयार होईल'].map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setOrderReadyTimes(prev => ({ ...prev, [ord.id]: t }))}
+                            className={`px-3 py-1 text-xs font-bold rounded-xl border transition ${
+                              (orderReadyTimes[ord.id] || '३० मिनिटांत तयार होईल') === t
+                                ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
+                                : 'bg-white text-teal-900 border-teal-200 hover:bg-teal-100'
+                            }`}
+                          >
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Order Total & Action Buttons */}
                   <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">

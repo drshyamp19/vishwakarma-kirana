@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Camera, Upload, X, Check, AlertCircle } from 'lucide-react';
+import { Camera, Upload, X, Check, AlertCircle, Store } from 'lucide-react';
 
 interface ParchiUploadModalProps {
   isOpen: boolean;
@@ -10,7 +10,7 @@ interface ParchiUploadModalProps {
     customerName: string;
     customerPhone: string;
     customerAddress?: string;
-    orderType: 'डिलिव्हरी' | 'दुकानातून_घेणे';
+    orderType: 'दुकानातून_घेणे';
     parchiImage: string;
     parchiNotes?: string;
   }) => void;
@@ -25,9 +25,9 @@ export const ParchiUploadModal: React.FC<ParchiUploadModalProps> = ({
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
-  const [orderType, setOrderType] = useState<'डिलिव्हरी' | 'दुकानातून_घेणे'>('डिलिव्हरी');
   const [parchiNotes, setParchiNotes] = useState('');
   const [error, setError] = useState('');
+  const [deliveryNotice, setDeliveryNotice] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
@@ -54,6 +54,11 @@ export const ParchiUploadModal: React.FC<ParchiUploadModalProps> = ({
     }
   };
 
+  const handleDeliveryClick = () => {
+    setDeliveryNotice(true);
+    setTimeout(() => setDeliveryNotice(false), 5000);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!imagePreview) {
@@ -68,16 +73,12 @@ export const ParchiUploadModal: React.FC<ParchiUploadModalProps> = ({
       setError('कृपया १० अंकी योग्य मोबाईल नंबर टाका');
       return;
     }
-    if (orderType === 'डिलिव्हरी' && !customerAddress.trim()) {
-      setError('होम डिलिव्हरीसाठी घराचा पत्ता आवश्यक आहे');
-      return;
-    }
 
     onSubmit({
       customerName,
       customerPhone,
       customerAddress,
-      orderType,
+      orderType: 'दुकानातून_घेणे',
       parchiImage: imagePreview,
       parchiNotes,
     });
@@ -198,48 +199,31 @@ export const ParchiUploadModal: React.FC<ParchiUploadModalProps> = ({
           {/* Delivery or Pickup */}
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1.5">
-              माल कसा हवा आहे?
+              माल कसा मिळणार?
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setOrderType('डिलिव्हरी')}
-                className={`p-2.5 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 ${
-                  orderType === 'डिलिव्हरी'
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                    : 'bg-gray-50 text-gray-700 border-gray-200'
-                }`}
+                className="p-2.5 rounded-xl text-xs font-bold border bg-emerald-700 text-white border-emerald-700 shadow-sm flex items-center justify-center gap-1.5"
               >
-                <span>🛵 घरपोच डिलिव्हरी</span>
+                <Store className="w-4 h-4" />
+                <span>🏪 दुकानात येऊन घेणे (पिक-अप)</span>
               </button>
               <button
                 type="button"
-                onClick={() => setOrderType('दुकानातून_घेणे')}
-                className={`p-2.5 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 ${
-                  orderType === 'दुकानातून_घेणे'
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                    : 'bg-gray-50 text-gray-700 border-gray-200'
-                }`}
+                onClick={handleDeliveryClick}
+                className="p-2.5 rounded-xl text-xs font-bold border border-dashed border-gray-300 bg-gray-50 text-gray-400 hover:bg-gray-100 flex items-center justify-center gap-1.5 transition"
               >
-                <span>🏪 दुकानात येऊन घेणे</span>
+                <span>🛵 घरपोच डिलिव्हरी</span>
               </button>
             </div>
-          </div>
 
-          {orderType === 'डिलिव्हरी' && (
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">
-                घरपोच डिलिव्हरीचा पत्ता *
-              </label>
-              <textarea
-                rows={2}
-                placeholder="उदा. फ्लॅट क्र. ४०२, साई दर्शन अपार्टमेंट, भाजी मंडई जवळ..."
-                value={customerAddress}
-                onChange={(e) => setCustomerAddress(e.target.value)}
-                className="w-full text-sm px-3.5 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-gray-900"
-              />
-            </div>
-          )}
+            {deliveryNotice && (
+              <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs font-semibold animate-in fade-in">
+                ⚠️ सध्या घरपोच डिलिव्हरी उपलब्ध नाही. कृपया ऑर्डर दुकानातून येऊन घ्यावी. लवकरच ही सेवा सुरू करू!
+              </div>
+            )}
+          </div>
 
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1">
@@ -247,7 +231,7 @@ export const ParchiUploadModal: React.FC<ParchiUploadModalProps> = ({
             </label>
             <input
               type="text"
-              placeholder="उदा. साखर बारीक हवी, तेल ५ वाजता पाठवा..."
+              placeholder="उदा. साखर बारीक हवी, १ तासाने येतो..."
               value={parchiNotes}
               onChange={(e) => setParchiNotes(e.target.value)}
               className="w-full text-sm px-3.5 py-2 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium text-gray-900"

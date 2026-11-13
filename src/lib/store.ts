@@ -89,7 +89,6 @@ export function useKiranaStore() {
         const storedSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
         if (storedSettings) {
           const parsed = JSON.parse(storedSettings);
-          // जर जुने डमी नाव असेल तर नवीन मूळ दुकानाची माहिती सेट करा
           if (parsed.shopName === 'आपला किराणा स्टोअर्स' || !parsed.phone || parsed.phone === '9876543210') {
             setSettings(INITIAL_SHOP_SETTINGS);
             localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(INITIAL_SHOP_SETTINGS));
@@ -101,7 +100,11 @@ export function useKiranaStore() {
         }
 
         const storedProducts = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-        if (storedProducts) setProducts(JSON.parse(storedProducts));
+        if (storedProducts) {
+          setProducts(JSON.parse(storedProducts));
+        } else {
+          setProducts(INITIAL_PRODUCTS);
+        }
 
         const storedOrders = localStorage.getItem(STORAGE_KEYS.ORDERS);
         if (storedOrders) setOrders(JSON.parse(storedOrders));
@@ -144,7 +147,7 @@ export function useKiranaStore() {
     customerName: string;
     customerPhone: string;
     customerAddress?: string;
-    orderType: 'डिलिव्हरी' | 'दुकानातून_घेणे';
+    orderType?: 'दुकानातून_घेणे' | 'डिलिव्हरी';
     items: OrderItem[];
     parchiImage?: string;
     parchiNotes?: string;
@@ -154,7 +157,8 @@ export function useKiranaStore() {
       customerName: orderData.customerName,
       customerPhone: orderData.customerPhone,
       customerAddress: orderData.customerAddress,
-      orderType: orderData.orderType,
+      orderType: orderData.orderType || 'दुकानातून_घेणे',
+      pickupReadyTime: 'सामान लवकरच पॅक केले जाईल',
       items: orderData.items,
       parchiImage: orderData.parchiImage,
       parchiNotes: orderData.parchiNotes,
@@ -181,7 +185,8 @@ export function useKiranaStore() {
   const setOrderDailyRates = async (
     orderId: string, 
     updatedItems: OrderItem[], 
-    discount = 0
+    discount = 0,
+    pickupReadyTime?: string
   ) => {
     const subtotal = updatedItems.reduce((sum, item) => {
       const itemTotal = (item.dailyRate || 0) * item.quantity;
@@ -199,6 +204,7 @@ export function useKiranaStore() {
             itemTotal: (it.dailyRate || 0) * it.quantity,
           })),
           totalAmount: finalTotal,
+          pickupReadyTime: pickupReadyTime || ord.pickupReadyTime || 'साधारण ३० मिनिटांत तयार होईल',
           status: 'बिल_तयार' as OrderStatus,
           updatedAt: new Date().toISOString(),
         };
@@ -216,6 +222,7 @@ export function useKiranaStore() {
         await updateDoc(doc(db, 'orders', orderId), {
           items: target.items,
           totalAmount: target.totalAmount,
+          pickupReadyTime: target.pickupReadyTime,
           status: 'बिल_तयार',
           updatedAt: target.updatedAt,
         });
@@ -228,7 +235,8 @@ export function useKiranaStore() {
     orderId: string, 
     status: OrderStatus, 
     paymentMethod?: 'रोख' | 'UPI' | 'उधारी',
-    isPaid?: boolean
+    isPaid?: boolean,
+    pickupReadyTime?: string
   ) => {
     const updatedOrders = orders.map((ord) => {
       if (ord.id === orderId) {
@@ -237,6 +245,7 @@ export function useKiranaStore() {
           status,
           paymentMethod: paymentMethod || ord.paymentMethod,
           isPaid: isPaid !== undefined ? isPaid : ord.isPaid,
+          pickupReadyTime: pickupReadyTime || ord.pickupReadyTime,
           updatedAt: new Date().toISOString(),
         };
       }
@@ -254,6 +263,7 @@ export function useKiranaStore() {
       };
       if (paymentMethod) updates.paymentMethod = paymentMethod;
       if (isPaid !== undefined) updates.isPaid = isPaid;
+      if (pickupReadyTime) updates.pickupReadyTime = pickupReadyTime;
       await updateDoc(doc(db, 'orders', orderId), updates);
     }
   };
@@ -343,7 +353,10 @@ export function useKiranaStore() {
 आपल्या खात्यावरील किराणा उधारी बाकी आहे.
 💰 *एकूण बाकी रक्कम:* *₹${customer.totalDue}*
 
-📲 *थेट Google Pay / PhonePe ने भरण्यासाठी लिंक:*
+📲 *थेट PhonePe / Google Pay करा:*
+नंबर: *${settings.phone}* (${settings.ownerName})
+
+🔗 *किंवा खालील UPI लिंकवरून थेट भरा:*
 ${upiLink}
 
 📍 दुकानाचा पत्ता: ${settings.address}
@@ -364,13 +377,13 @@ ${upiLink}
     const upiLink = `upi://pay?pa=${encodeURIComponent(settings.upiId)}&pn=${encodeURIComponent(settings.shopName)}&am=${order.totalAmount}&cu=INR`;
 
     const message = 
-`🧾 *${settings.shopName} - बिल*
+`🧾 *${settings.shopName} - पावती*
 ------------------------------
 ग्राहक: *${order.customerName}*
 ऑर्डर क्र.: *#${order.id}*
 तारीख: ${new Date(order.createdAt).toLocaleDateString('mr-IN')}
-प्रकार: ${order.orderType}
-
+प्रकार: 🏪 दुकानातून येऊन घेणे (पिक-अप)
+${order.pickupReadyTime ? `⏰ सामान पिक-अप वेळ: *${order.pickupReadyTime}*\n` : ''}
 *सामानाची यादी (आजच्या भावासह):*
 ${itemsText}
 
@@ -378,12 +391,15 @@ ${itemsText}
 💵 *एकूण बिल रक्कम: ₹${order.totalAmount}*
 ------------------------------
 
-📲 *थेट UPI (PhonePe / GPay) द्वारे पेमेंट करा:*
+📲 *थेट PhonePe / Google Pay करा:*
+नंबर: *${settings.phone}* (${settings.ownerName})
+
+🔗 *किंवा खालील लिंकने UPI ॲप उघडा:*
 ${upiLink}
 
 📍 पत्ता: ${settings.address}
 📞 फोन: ${settings.phone}
-आपल्या सेवेत नेहमी तत्पर! 🙏`;
+आपल्या विश्वासासाठी धन्यवाद! 🙏`;
 
     return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
   };
